@@ -28,14 +28,14 @@ device: gps tracker [Autolink II](http://tn-group.net/index.php?route=product/pr
 msg data is hashmap:
 
 ```clojure
-{:type :package,
-                :pack-num 2,
-                :unixtime 1406097384,
-                :data [{:point {:lat 55.0224, :lon 82.9139},
-                        :status-bytes nil,
-                        :speed 0.0,
-                        :satellite-count 20,
-                        :altitude 130,
-                        :course 0}]}
+   {:type :package,
+    :pack-num 2,
+    :unixtime 1406097384,
+    :data [{:point {:lat 55.0224, :lon 82.9139},
+            :status-bytes nil,
+            :speed 0.0,
+            :satellite-count 20,
+            :altitude 130,
+            :course 0}]}
 ````
 
