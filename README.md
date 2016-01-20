@@ -13,15 +13,15 @@ device: gps tracker [Autolink II](http://tn-group.net/index.php?route=product/pr
 (defrecord MyEvents []
   autolink2/ISockEvents
   (on-error [this session err]
-    (println "ISockEvents-error:" (.getMessage err)) this)
+    (println "ISockEvents-error:" (.getMessage err)))
   (on-open [this session]
-    (println "ISockEvents-open:") this)
+    (println "ISockEvents-open:"))
   (on-message [this session msg]
-    (println "ISockEvents-message:" msg " car-id > " @(:car-id session)) this)
+    (println "ISockEvents-message:" msg))
   (on-close [this session]
-    (println "ISockEvents-close: car-id >" @(:car-id session)) this))
+    (println "ISockEvents-close: car-id " @(:car-id session))))
     
-(start-alink2-server (->MyEvents) 7779)
+(start-alink2-server (->MyEvents) 7779) ;; 7779 - listen port
 ````
 
 
