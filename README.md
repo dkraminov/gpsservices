@@ -1,3 +1,10 @@
+##introduction
+
+Server implements communication 
+[protocol](https://docs.google.com/spreadsheets/d/15s-2ZbqOQ1bZvAtFFm9sIEuKy3jbJzxdeynp72sjoYU/edit#gid=3)) device<=>server 
+
+device: gps tracker [Autolink II](http://tn-group.net/index.php?route=product/product&path=25_29&product_id=68)
+
 ## Usage
 
 ```clojure
