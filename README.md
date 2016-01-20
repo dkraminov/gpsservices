@@ -1,6 +1,9 @@
 ## Usage
 
-```
+```clojure
+(use 'gpsservices.core)
+(require '[gpsservices.autolink2 :as autolink2])
+
 (defrecord MyEvents []
   autolink2/ISockEvents
   (on-error [this session err]
@@ -12,5 +15,6 @@
   (on-close [this session]
     (println "ISockEvents-close: car-id >" @(:car-id session)) this))
     
-(start-alink2-server (->MyEvents) 7779)````
+(start-alink2-server (->MyEvents) 7779)
+````
 
