@@ -8,10 +8,9 @@ device: gps tracker [Autolink II](http://tn-group.net/index.php?route=product/pr
 
 ```clojure
 (use 'gpsservices.core)
-(require '[gpsservices.autolink2 :as autolink2])
 
 (defrecord MyEvents []
-  autolink2/ISockEvents
+  ISockEvents
   (on-error [this session err]
     (println "ISockEvents-error:" (.getMessage err)))
   (on-open [this session]
