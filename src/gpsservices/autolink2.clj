@@ -96,7 +96,8 @@
        :satellite-count (+ sat-GPS-count sat-GLONASS-count)
        :altitude        (* (hx/get-byte bytes 1) 10)
        :course          (* (hx/get-byte bytes 0) 2)})
-    (catch Exception _ {:speed nil
+    (catch Exception e {:error (.getMessage e)
+                        :speed nil
                         :satellite-count nil
                         :altitude        nil
                         :course          nil})))
@@ -132,7 +133,8 @@
               :point {:lat (bytes->point (pull 3))
                       :lon (bytes->point (pull 4))}
               :status-bytes (pull 9)} info)
-      (catch Exception _ (merge {:unixtime nil
+      (catch Exception e (merge {:error (.getMessage e)
+                                 :unixtime nil
                                  :point {:lat 0 :lon 0}
                                  :status-bytes nil} info)))))
 
@@ -169,7 +171,7 @@
         concat-data (hx/concat-bytes [data new-data])
         size-last-data (count data)]
     (if type-new-data new-data
-                      (if (> size-last-data 1500)
+                      (if (> size-last-data (* 1500 5))     ;; пятикратное привышение MTU
                         (do (throw (Exception. "exceeded the minimum (1500b) buf size")) nil)
                         (if type-last-data new-data concat-data)))))
 
