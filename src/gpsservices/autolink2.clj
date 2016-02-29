@@ -171,7 +171,7 @@
         concat-data (hx/concat-bytes [data new-data])
         size-last-data (count data)]
     (if type-new-data new-data
-                      (if (> size-last-data (* 1500 5))     ;; пятикратное привышение MTU
+                      (if (> size-last-data (* 1500 5))     ;; пятикратное превышение MTU
                         (do (throw (Exception. "exceeded the minimum (1500b) buf size")) nil)
                         (if type-last-data new-data concat-data)))))
 
