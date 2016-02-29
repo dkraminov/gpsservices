@@ -7,6 +7,11 @@
   :test-paths ["test"]
   :main gpsservices.core
   :dependencies [[org.clojure/clojure "1.7.0"]
+                 [org.clojure/tools.logging "0.2.6"]
+                 [log4j "1.2.17" :exclusions [javax.mail/mail
+                                              javax.jms/jms
+                                              com.sun.jdmk/jmxtools
+                                              com.sun.jmx/jmxri]]
                  [org.clojure/core.async "0.2.374"]
                  [aleph "0.4.1-beta3"]
                  [gloss "0.2.5"]])
