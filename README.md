@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/seryh/gpsservices.svg?branch=master)](https://travis-ci.org/seryh/gpsservices)
+
 ##introduction
 
 Server implements communication device<=>server [protocol](https://docs.google.com/spreadsheets/d/15s-2ZbqOQ1bZvAtFFm9sIEuKy3jbJzxdeynp72sjoYU/edit#gid=3) 
