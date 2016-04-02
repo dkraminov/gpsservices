@@ -60,7 +60,7 @@
                                  :course 0}]}] true :else false)]
       (is (= valid true)))))
 
-(deftest decode-data-test-1
+(deftest decode-data-test-2
   (testing "Decode invalid data"
     (let [data (a2/decode-data exmpl-package-invalid)
           valid (match [data]

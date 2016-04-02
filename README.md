@@ -4,9 +4,11 @@
 
 ##introduction
 
-Server implements communication device<=>server [protocol](https://docs.google.com/spreadsheets/d/15s-2ZbqOQ1bZvAtFFm9sIEuKy3jbJzxdeynp72sjoYU/edit#gid=3) 
+Server implements communication device<=>server [Autolink-II protocol](https://docs.google.com/spreadsheets/d/15s-2ZbqOQ1bZvAtFFm9sIEuKy3jbJzxdeynp72sjoYU/edit#gid=3)
 
-device: gps tracker [Autolink II](http://tn-group.net/index.php?route=product/product&path=25_29&product_id=68)
+device: gps tracker [Autolink-II](http://tn-group.net/index.php?route=product/product&path=25_29&product_id=68)
+
+also supported Autolink-I protocol
 
 ## Usage
 
