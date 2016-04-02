@@ -14,4 +14,6 @@
                                               com.sun.jmx/jmxri]]
                  [org.clojure/core.async "0.2.374"]
                  [aleph "0.4.1-beta3"]
-                 [gloss "0.2.5"]])
+                 [gloss "0.2.5"]]
+  :profiles {:uberjar {:aot :all}
+             :dev {:dependencies [[org.clojure/core.match "0.3.0-alpha4"]]}})

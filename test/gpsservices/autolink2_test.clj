@@ -1,6 +1,7 @@
 (ns gpsservices.autolink2-test
   (:require [clojure.test :refer :all]
-            [gpsservices.autolink2 :refer [get-type-package]]))
+            [clojure.core.match :refer [match]]
+            [gpsservices.autolink2 :as a2]))
 
 (def ^:private exmpl-header (byte-array [0xff 0x22 0x41 0x04 0x55 0x7f 0xa0 0x15 0x03 0x00]))
 
@@ -31,20 +32,50 @@
 
 (deftest detect-type-test-1
   (testing "Detect type head"
-    (let [type (get-type-package exmpl-header)]
+    (let [type (a2/get-type-package exmpl-header)]
       (is (= type :header)))))
 
 (deftest detect-type-test-2
   (testing "Detect type package"
-    (let [type (get-type-package exmpl-package)]
+    (let [type (a2/get-type-package exmpl-package)]
               (is (= type :package)))))
 
 (deftest detect-type-test-3
   (testing "Detect type invalid data"
-    (let [type (get-type-package exmpl-package-invalid)]
+    (let [type (a2/get-type-package exmpl-package-invalid)]
               (is (= type nil)))))
 
-(comment
-  (run-all-tests))
+(deftest decode-data-test-1
+  (testing "Decode valid data"
+    (let [data (a2/decode-data exmpl-package)
+          valid (match [data]
+                       [{:type :package
+                         :pack-num 2
+                         :data [{:unixtime 1406097384
+                                 :point {:lat _ :lon _}
+                                 :speed 0.0
+                                 :status-bytes _
+                                 :satellite-count 20
+                                 :altitude 130
+                                 :course 0}]}] true :else false)]
+      (is (= valid true)))))
 
-;;todo more tests
+(deftest decode-data-test-1
+  (testing "Decode invalid data"
+    (let [data (a2/decode-data exmpl-package-invalid)
+          valid (match [data]
+                       [{:type :package
+                         :pack-num 2
+                         :data [{:unixtime 1406097384
+                                 :point {:lat _ :lon _}
+                                 :speed 0.0
+                                 :status-bytes _
+                                 :satellite-count 20
+                                 :altitude 130
+                                 :course 0}]}] true :else false)]
+      (is (= valid false)))))
+
+(comment
+  (a2/decode-data exmpl-package)
+  (a2/decode-data exmpl-package-invalid)
+  (run-all-tests))

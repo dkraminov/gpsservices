@@ -61,8 +61,9 @@
   (or (full-head? data) (full-pack? data)))
 
 (defn get-type-package [^bytes data]
-  (when data (if (full-head? data) :header
-                                   (if (full-pack? data) :package))))
+  (when data (if (full-head? data)
+               :header
+               (if (full-pack? data) :package))))
 
 (defn- sub-decode [^bytes bytes start end frame]
   (let [sub (hx/sub-and-reverse bytes start end)]
@@ -81,7 +82,8 @@
            coll (into coll [frame])]
        (if (< p-end-offset data-count)
          (get-frames data (+ 1 p-end-offset) coll) coll))
-     (catch Exception e (log/errorf "gpsservices.autolink2 get-frames error %s\n" e) coll))))
+     (catch Exception e
+       (log/errorf "gpsservices.autolink2 get-frames error %s\n" e) coll))))
 
 (defn- bytes->point [^bytes bytes]
   (gio/decode :float32 (hx/byte-reverse bytes)))
@@ -122,21 +124,18 @@
     (every? true? valids)))
 
 (defn- decode-package-frame [^bytes frame]
-  (let [count-data (count frame)
-        unixtime (sub-decode frame 0 4 :uint32)
-        frame-parts (partition 5 (hx/subbytes frame 4 (- count-data 1)))  ;; делим фрейм на ключ - значение
-        pull (into {} (for [part frame-parts :let [[id & rest] (vec part)]]
-                        [id (byte-array rest)]))
-        info (decode-info (pull 5))]
-    (try
+  (try
+    (let [count-data (count frame)
+          unixtime (sub-decode frame 0 4 :uint32)
+          frame-parts (partition 5 (hx/subbytes frame 4 (- count-data 1)))  ;; делим фрейм на ключ - значение
+          pull (into {} (for [part frame-parts :let [[id & rest] (vec part)]]
+                          [id (byte-array rest)]))
+          info (decode-info (pull 5))]
       (merge {:unixtime unixtime
               :point {:lat (bytes->point (pull 3))
                       :lon (bytes->point (pull 4))}
-              :status-bytes (pull 9)} info)
-      (catch Exception e (merge {:error (.getMessage e)
-                                 :unixtime nil
-                                 :point {:lat 0 :lon 0}
-                                 :status-bytes nil} info)))))
+              :status-bytes (pull 9)} info))
+    (catch Exception _ nil)))
 
 (defn decode-packages [^bytes data]
   (let [pack-num (sub-decode data 1 2 :ubyte)
@@ -145,7 +144,7 @@
     (when valid?
       {:type :package
        :pack-num pack-num
-       :data (vec (map decode-package-frame frames))})))
+       :data (vec (filter some? (map decode-package-frame frames)))})))
 
 (defn gen-response
   "generate response for autolink2 device"
@@ -154,22 +153,24 @@
    (let [pack-num (or pack-num 0xFE)]
      (byte-array [0x7B 0x00 pack-num 0x7D]))))
 
-
 (defn decode-data
   "parse binary autolink2 data"
   [^bytes data]
   (let [type (get-type-package data)]
-    (case type
-      :header (let [data (hx/byte-reverse data)
-                    decode-header (dissoc (gio/decode header-frame data)) ]
-                    (merge decode-header {:type :header}))
-      :package (decode-packages data))))
+    (when type
+      (case type
+        :header (let [data (hx/byte-reverse data)
+                      decode-header (dissoc (gio/decode header-frame data)) ]
+                  (merge decode-header {:type :header}))
+        :package (decode-packages data)))))
 
 (defn- pack-reader [^bytes data ^bytes new-data]
   (let [type-new-data (get-type-package new-data)
         type-last-data (get-type-package data)
         concat-data (hx/concat-bytes [data new-data])
         size-last-data (count data)]
+    ;; Если не определили целостность пакета то предполагаем
+    ;; что пакет к нам приешл не полностью и пытаемся склеить
     (if type-new-data new-data
                       (if (> size-last-data (* 1500 5))     ;; пятикратное превышение MTU
                         (do (throw (Exception. "exceeded the minimum (7500b) buf size")) nil)
@@ -188,7 +189,8 @@
                     (swap! last-packet pack-reader ch-data)
                     (let [last-packet @last-packet]
                       (when (valid-data? last-packet)
-                        (let [decrypted-data (decode-data last-packet) type (get-type-package last-packet)]
+                        (let [decrypted-data (decode-data last-packet)
+                              type (get-type-package last-packet)]
                           (when-let [new-car-id (:car-id decrypted-data)]
                             (reset! car-id new-car-id))
                           (case type
@@ -196,8 +198,9 @@
                             :package (if @car-id
                                        (s/put! user-stream (gen-response (:pack-num decrypted-data)))
                                        (throw (Exception. "header pack is missing"))))
-                          (.on-message SockEvents session decrypted-data)
-                          (reset! last-decode-data decrypted-data))))
+                          (when (< 0 (count (:data decrypted-data)))
+                            (.on-message SockEvents session decrypted-data)
+                            (reset! last-decode-data decrypted-data)))))
                     :ok
                     (catch Exception e (.on-error SockEvents session e)
                                        (unregister-user session)
