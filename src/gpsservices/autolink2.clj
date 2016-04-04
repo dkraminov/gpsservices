@@ -55,7 +55,7 @@
   (and (= (count data) 10) (= 0xff (hx/first-byte data)) (= 0x00 (hx/last-byte data))))
 
 (defn full-pack? [^bytes data]
-  (and (= 0x5b (hx/first-byte data)) (= 0x5d (hx/last-byte data))))
+  (and (= 0x5b (hx/first-byte data)) (= 0x5d (hx/last-byte data)) (= 0x01 (hx/get-byte data 2))))
 
 (defn valid-data? [^bytes data]
   (or (full-head? data) (full-pack? data)))
@@ -188,7 +188,7 @@
         (let [res (try
                     (swap! last-packet pack-reader ch-data)
                     (let [last-packet @last-packet]
-                      (when (valid-data? last-packet)
+                      (if (valid-data? last-packet)
                         (let [decrypted-data (decode-data last-packet)
                               type (get-type-package last-packet)]
                           (when-let [new-car-id (:car-id decrypted-data)]
@@ -200,7 +200,8 @@
                                        (throw (Exception. "header pack is missing"))))
                           (when (< 0 (count (:data decrypted-data)))
                             (.on-message SockEvents session decrypted-data)
-                            (reset! last-decode-data decrypted-data)))))
+                            (reset! last-decode-data decrypted-data)))
+                        (s/put! user-stream (gen-response nil))))
                     :ok
                     (catch Exception e (.on-error SockEvents session e)
                                        (unregister-user session)
