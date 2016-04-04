@@ -99,10 +99,10 @@
        :altitude        (* (hx/get-byte bytes 1) 10)
        :course          (* (hx/get-byte bytes 0) 2)})
     (catch Exception e {:error (.getMessage e)
-                        :speed nil
+                        :speed 0
                         :satellite-count nil
                         :altitude        nil
-                        :course          nil})))
+                        :course          0})))
 
 (defn data-sum [^bytes data]
   (let [count-data (count data)]
