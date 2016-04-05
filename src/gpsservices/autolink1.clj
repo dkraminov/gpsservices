@@ -3,6 +3,7 @@
   (:require [clojure.core.async :refer [timeout buffer alts!! alts! close! onto-chan go go-loop chan <! >! >!! <!! thread]]
             [manifold.stream :as s]
             [clj-time.core :as t]
+            [clj-time.local :as l]
             [clj-time.coerce :as c]
             [aleph.tcp :as tcp]
             [clojure.tools.logging :as log]
@@ -24,7 +25,7 @@
   (on-message [this session msg])
   (on-close [this session]))
 
-(defrecord Session [id chan user-stream info last-packet car-id SockEvents prev-packet])
+(defrecord Session [id last-pack-date chan user-stream info last-packet car-id SockEvents prev-packet])
 
 (defrecord DefEvents []
   ISockEvents
@@ -44,6 +45,9 @@
 (defonce users (atom {}))
 
 (defn- gen-uuid [] (str (UUID/randomUUID)))
+
+(defn- now-date []
+  (quot (c/to-long (l/local-now)) 1000))
 
 (defn register-user [session]
   (let [id (:id session)]
@@ -109,17 +113,35 @@
         new-data-decode (decode-data new-data)]
     new-data-decode))
 
+(defn clear-keepalive []
+  (let [isDie (fn [user]
+                (let [[_ session] user
+                      car-id @(:car-id session)
+                      last-pack-date @(:last-pack-date session)
+                      now (now-date)
+                      timeout (- now last-pack-date)]
+                  (when (> timeout 120)
+                    (unregister-user session) car-id)))
+        clear-ids (filter some? (map isDie @users))]
+    (when (> (count clear-ids) 0)
+      (log/info "clear-keepalive::" clear-ids))
+    clear-ids))
+
 (defn- channel-handler [session]
   (let [{chan             :chan
          user-stream      :user-stream
          last-packet      :last-packet
+         last-pack-date   :last-pack-date
          prev-packet      :prev-packet
          car-id           :car-id
          SockEvents       :SockEvents} session]
     (go-loop []
       (if-let [ch-data (<! chan)]
         (let [res (try
+                    (when (s/closed? user-stream)
+                      (throw (Exception. "connection lost")))
                     (reset! prev-packet @last-packet)
+                    (reset! last-pack-date (now-date))
                     (swap! last-packet pack-reader ch-data)
                     (let [decrypted-data @last-packet]
                       (when-not @car-id
@@ -137,12 +159,8 @@
         (unregister-user session)))) session)
 
 (defn- channel-new
-  ([user-stream SockEvents]
-   (channel-new user-stream SockEvents {}))
-  ([user-stream SockEvents info]
-   (channel-new user-stream SockEvents info channel-handler))
   ([user-stream SockEvents info handler]
-   (let [id (gen-uuid) chan (chan) session (->Session id chan user-stream info (atom nil) (atom nil) SockEvents (atom nil))]
+   (let [id (gen-uuid) chan (chan) session (->Session id (atom (now-date)) chan user-stream info (atom nil) (atom nil) SockEvents (atom nil))]
      (s/connect user-stream chan)
      (handler session))))
 
@@ -151,8 +169,9 @@
   ([SockEvents & [options]]
    (let [port (:port options 2888)
          srv (tcp/start-server (fn [user-stream info]
-                                 (let [session (channel-new user-stream SockEvents info)]
+                                 (let [session (channel-new user-stream SockEvents info channel-handler)]
                                    (register-user session)
+                                   (clear-keepalive)
                                    (.on-open SockEvents session)))
                                {:port port})]
      (log/infof "gpsservices.autolink1 server started. listen on %s\n" port)
@@ -164,3 +183,7 @@
     (close! (:chan user)))
   (when-let [srv @server]
     (.close srv)))
+
+(comment
+  (decode-data exmpl)
+  )

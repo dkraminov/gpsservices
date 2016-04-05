@@ -2,13 +2,16 @@
   (:gen-class)
   (:require [clojure.core.async :refer [timeout buffer alts!! alts! close! onto-chan go go-loop chan <! >! >!! <!! thread]]
             [manifold.stream :as s]
+            [clj-time.local :as l]
+            [clj-time.coerce :as c]
             [gpsservices.utils.hexlify :as hx]
             [aleph.tcp :as tcp]
             [clojure.tools.logging :as log]
             [gloss.core :as g]
             [gloss.io :as gio])
   (:use [gloss.data.primitives :refer :all])
-  (:import (java.util UUID)))
+  (:import (java.util UUID)
+           (clojure.lang BigInt)))
 
 (defprotocol ISockEvents
   (on-error [this session err])
@@ -16,7 +19,7 @@
   (on-message [this session msg])
   (on-close [this session]))
 
-(defrecord Session [id chan user-stream info last-packet car-id SockEvents last-decode-data])
+(defrecord Session [id last-pack-date chan user-stream info last-packet car-id SockEvents last-decode-data])
 
 (defrecord DefEvents []
   ISockEvents
@@ -50,6 +53,9 @@
     (.on-close SockEvents session)
     (s/close! user-stream)
     (swap! users dissoc id)))
+
+(defn- now-date []
+  (quot (c/to-long (l/local-now)) 1000))
 
 (defn full-head? [^bytes data]
   (and (= (count data) 10) (= 0xff (hx/first-byte data)) (= 0x00 (hx/last-byte data))))
@@ -176,27 +182,56 @@
                         (do (throw (Exception. "exceeded the minimum (7500b) buf size")) nil)
                         (if type-last-data new-data concat-data)))))
 
+(defn clear-zoombi [^BigInt new-car-id ^String new-sess-id]
+  (let [isDie (fn [user]
+                (let [[sess-id session] user
+                       car-id @(:car-id session)]
+                  (when (and (= new-car-id car-id) (not= new-sess-id sess-id))
+                    (unregister-user session) car-id)))
+        clear-ids (filter some? (map isDie @users))] clear-ids))
+
+(defn clear-keepalive []
+  (let [isDie (fn [user]
+                (let [[_ session] user
+                       car-id @(:car-id session)
+                       last-pack-date @(:last-pack-date session)
+                       now (now-date)
+                       timeout (- now last-pack-date)]
+                  (when (> timeout 120)
+                    (unregister-user session) car-id)))
+        clear-ids (filter some? (map isDie @users))]
+        (when (> (count clear-ids) 0)
+          (log/info "clear-keepalive::" clear-ids))
+        clear-ids))
+
 (defn- channel-handler [session]
   (let [{chan             :chan
          user-stream      :user-stream
          last-packet      :last-packet
+         last-pack-date   :last-pack-date
          last-decode-data :last-decode-data
          car-id           :car-id
+         sess-id          :id
          SockEvents       :SockEvents} session]
     (go-loop []
       (if-let [ch-data (<! chan)]
         (let [res (try
+                    (when (s/closed? user-stream)
+                      (throw (Exception. "connection lost")))
                     (swap! last-packet pack-reader ch-data)
                     (let [last-packet @last-packet]
                       (if (valid-data? last-packet)
                         (let [decrypted-data (decode-data last-packet)
                               type (get-type-package last-packet)]
                           (when-let [new-car-id (:car-id decrypted-data)]
+                            (clear-zoombi new-car-id sess-id)
                             (reset! car-id new-car-id))
                           (case type
                             :header (s/put! user-stream (gen-response))
                             :package (if @car-id
-                                       (s/put! user-stream (gen-response (:pack-num decrypted-data)))
+                                       (do
+                                         (reset! last-pack-date (now-date))
+                                         (s/put! user-stream (gen-response (:pack-num decrypted-data))))
                                        (throw (Exception. "header pack is missing"))))
                           (when (< 0 (count (:data decrypted-data)))
                             (.on-message SockEvents session decrypted-data)
@@ -211,23 +246,23 @@
             (recur)))
         (unregister-user session)))) session)
 
+
 (defn- channel-new
-  ([user-stream SockEvents]
-   (channel-new user-stream SockEvents {}))
-  ([user-stream SockEvents info]
-   (channel-new user-stream SockEvents info channel-handler))
   ([user-stream SockEvents info handler]
-   (let [id (gen-uuid) chan (chan) session (->Session id chan user-stream info (atom nil) (atom nil) SockEvents (atom nil))]
+   (let [id (gen-uuid)
+         chan (chan)
+         session (->Session id (atom (now-date)) chan user-stream info (atom nil) (atom nil) SockEvents (atom nil))]
      (s/connect user-stream chan)
      (handler session))))
 
 (defn start-server
   ([] (start-server (->DefEvents)))
   ([SockEvents & [options]]
-   (let [port (:port options 7779)
+   (let [port (:port options 2889)
          srv (tcp/start-server (fn [user-stream info]
-                                 (let [session (channel-new user-stream SockEvents info)]
+                                 (let [session (channel-new user-stream SockEvents info channel-handler)]
                                    (register-user session)
+                                   (clear-keepalive)
                                    (.on-open SockEvents session)))
                                {:port port})]
      (log/infof "gpsservices.autolink2 server started. listen on %s\n" port)
@@ -239,3 +274,4 @@
     (close! (:chan user)))
   (when-let [srv @server]
     (.close srv)))
+
