@@ -13,6 +13,7 @@
                                               com.sun.jdmk/jmxtools
                                               com.sun.jmx/jmxri]]
                  [org.clojure/core.async "0.2.374"]
+                 [clj-time "0.11.0"]
                  [aleph "0.4.1-beta3"]
                  [gloss "0.2.5"]]
   :profiles {:uberjar {:aot :all}
