@@ -1,4 +1,4 @@
-(defproject gpsservices "0.1.2-SNAPSHOT"
+(defproject gpsservices "0.1.3-SNAPSHOT"
   :description "autolink device GPS server"
   :url "https://github.com/seryh/gpsservices"
   :license {:name "Eclipse Public License"
