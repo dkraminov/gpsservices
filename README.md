@@ -10,13 +10,13 @@ device: gps tracker [Autolink-II](http://tn-group.net/index.php?route=product/pr
 
 also supported Autolink-I protocol
 
-## Usage
+## Usage autolink2
 
 ```clojure
 (use 'gpsservices.core)
 
 (defrecord MyEvents []
-  ISockEvents
+  ISockEvents-autolink2
   (on-error [this session err]
     (println "ISockEvents-error:" (.getMessage err)))
   (on-open [this session]
@@ -29,16 +29,45 @@ also supported Autolink-I protocol
 (start-alink2-server (->MyEvents) 7779) ;; 7779 - listen port
 ````
 
-
-msg data is hashmap:
-
+autolink2 msg data is hashmap:
 ```clojure
    {:type :package,
     :pack-num 2,
     :data [{:point {:lat 55.0224, :lon 82.9139},
             :unixtime 1406097384,
             :status-bytes [...],
-            :speed 0.0,
+            :speed 0.0,           ;; km/h
+            :satellite-count 20,
+            :altitude 130,
+            :course 0}]}
+````
+
+## Usage autolink1
+
+```clojure
+(use 'gpsservices.core)
+
+(defrecord MyEvents []
+  ISockEvents-autolink1
+  (on-error [this session err]
+    (println "ISockEvents-error:" (.getMessage err)))
+  (on-open [this session]
+    (println "ISockEvents-open:"))
+  (on-message [this session msg]
+    (println "ISockEvents-message:" msg))
+  (on-close [this session]
+    (println "ISockEvents-close: car-id " @(:car-id session))))
+    
+(start-alink1-server (->MyEvents) 7778) ;; 7778 - listen port
+````
+
+autolink1 msg data is hashmap:
+```clojure
+   {:type :package,
+    :data [{:point {:lat 55.0224, :lon 82.9139},
+            :unixtime 1406097384,
+            :car-id "473646",
+            :speed 0.0,           ;; km/h
             :satellite-count 20,
             :altitude 130,
             :course 0}]}
