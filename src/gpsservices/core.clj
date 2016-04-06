@@ -3,8 +3,9 @@
   (:require [gpsservices.autolink2 :as autolink2]
             [gpsservices.autolink2 :as autolink1]))
 
-(def ISockEvents autolink1/ISockEvents)
 (def ISockEvents autolink2/ISockEvents)
+(def ISockEvents-autolink1 autolink1/ISockEvents)
+(def ISockEvents-autolink2 autolink2/ISockEvents)
 
 (def autolink1-users autolink1/users)
 (def autolink2-users autolink2/users)
